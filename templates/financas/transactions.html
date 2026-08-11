@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lançamentos | Meu Dinheiro{% endblock %}
+{% block page_title %}Lançamentos Financeiros{% endblock %}
+
+{% block content %}
+<!-- Search & Filter Card -->
+<div class="card-custom p-3 mb-4">
+  <form method="get" class="row g-2 align-items-center">
+    <!-- Search Query -->
+    <div class="col-12 col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-dark border-secondary border-opacity-25 text-secondary"><i class="bi bi-search"></i></span>
+        <input type="text" name="search" class="form-control" placeholder="Buscar descrição..." value="{{ search_query }}">
+      </div>
+    </div>
+
+    <!-- Type Filter -->
+    <div class="col-6 col-md-2">
+      <select name="type" class="form-select form-select-sm">
+        <option value="">Todos os Tipos</option>
+        <option value="INCOME" {% if type_filter == 'INCOME' %}selected{% endif %}>Receitas (+)</option>
+        <option value="EXPENSE" {% if type_filter == 'EXPENSE' %}selected{% endif %}>Despesas (-)</option>
+      </select>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="col-6 col-md-2">
+      <select name="category" class="form-select form-select-sm">
+        <option value="">Todas Categorias</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if category_filter == cat.id|stringformat:'i' %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Start Date -->
+    <div class="col-6 col-md-2">
+      <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" placeholder="Data Inicial">
+    </div>
+
+    <!-- End Date -->
+    <div class="col-6 col-md-2">
+      <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" placeholder="Data Final">
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="col-12 col-md-1 d-flex gap-1">
+      <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-funnel-fill"></i></button>
+      <a href="{% url 'transactions' %}" class="btn btn-outline-secondary btn-sm" title="Limpar Filtros"><i class="bi bi-x-lg"></i></a>
+    </div>
+  </form>
+</div>
+
+<!-- Summary Cards for Filtered Results -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card-custom p-3 border-start border-success border-4">
+      <div class="text-secondary small fw-semibold">Receitas Filtradas</div>
+      <div class="h4 mb-0 fw-bold text-success">R$ {{ total_incomes|floatformat:2 }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-custom p-3 border-start border-danger border-4">
+      <div class="text-secondary small fw-semibold">Despesas Filtradas</div>
+      <div class="h4 mb-0 fw-bold text-danger">R$ {{ total_expenses|floatformat:2 }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-custom p-3 border-start border-info border-4">
+      <div class="text-secondary small fw-semibold">Balanço Filtrado</div>
+      <div class="h4 mb-0 fw-bold {% if filtered_net >= 0 %}text-info{% else %}text-danger{% endif %}">
+        R$ {{ filtered_net|floatformat:2 }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transactions Table Card -->
+<div class="card-custom">
+  <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+    <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-list-check text-primary"></i> Lista de Lançamentos
+    </h5>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'export_csv' %}" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-download me-1"></i> Baixar CSV
+      </a>
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickAddModal">
+        <i class="bi bi-plus-lg me-1"></i> Adicionar
+      </button>
+    </div>
+  </div>
+
+  {% if page_obj %}
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th>Forma Pagto</th>
+            <th class="text-end">Valor</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in page_obj %}
+            <tr>
+              <td class="text-secondary small fw-semibold">{{ t.date|date:"d/m/Y" }}</td>
+              <td>
+                {% if t.type == 'INCOME' %}
+                  <span class="badge badge-income"><i class="bi bi-arrow-down-left"></i> Receita</span>
+                {% else %}
+                  <span class="badge badge-expense"><i class="bi bi-arrow-up-right"></i> Despesa</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="fw-semibold text-light">{{ t.description }}</div>
+                {% if t.affects_stock and t.product %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 mt-1" style="font-size: 0.7rem;">
+                    <i class="bi bi-box-seam me-1"></i> Estoque: {{ t.quantity|floatformat:2 }} {{ t.product.unit }} ({{ t.product.name }})
+                  </span>
+                {% endif %}
+                {% if t.notes %}
+                  <small class="text-secondary opacity-75 d-block" style="font-size: 0.75rem;">{{ t.notes }}</small>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if t.category %}
+                  <span class="badge-cat" style="background-color: rgba(255,255,255,0.05); color: {{ t.category.color }}; border: 1px solid {{ t.category.color }};">
+                    <i class="bi {{ t.category.icon }}"></i> {{ t.category.name }}
+                  </span>
+                {% else %}
+                  <span class="text-secondary small">Sem Categoria</span>
+                {% endif %}
+              </td>
+              <td><span class="text-secondary small">{{ t.get_payment_method_display }}</span></td>
+              <td class="text-end fw-bold fs-6 {% if t.type == 'INCOME' %}text-success{% else %}text-danger{% endif %}">
+                {% if t.type == 'INCOME' %}+{% else %}-{% endif %} R$ {{ t.amount|floatformat:2 }}
+              </td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-1">
+                  <!-- Edit Button Modal Trigger -->
+                  <a href="{% url 'transaction_edit' t.id %}" class="btn btn-outline-warning btn-sm py-1 px-2" title="Editar">
+                    <i class="bi bi-pencil-fill"></i>
+                  </a>
+                  <!-- Delete Form -->
+                  <form method="post" action="{% url 'transaction_delete' t.id %}" onsubmit="return confirm('Deseja realmente excluir este lançamento?');" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Excluir">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    {% if page_obj.has_other_pages %}
+      <div class="p-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+        <small class="text-secondary">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</small>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&type={{ type_filter }}&category={{ category_filter }}&start_date={{ start_date }}&end_date={{ end_date }}">Anterior</a></li>
+          {% endif %}
+
+          {% for p in page_obj.paginator.page_range %}
+            {% if page_obj.number == p %}
+              <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            {% elif p > page_obj.number|add:-3 and p < page_obj.number|add:3 %}
+              <li class="page-item"><a class="page-link" href="?page={{ p }}&search={{ search_query }}&type={{ type_filter }}&category={{ category_filter }}&start_date={{ start_date }}&end_date={{ end_date }}">{{ p }}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&type={{ type_filter }}&category={{ category_filter }}&start_date={{ start_date }}&end_date={{ end_date }}">Próxima</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-search fs-1 mb-2"></i>
+      <p class="mb-2">Nenhum lançamento encontrado para os filtros selecionados.</p>
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickAddModal">
+        <i class="bi bi-plus-circle me-1"></i> Cadastrar Novo Lançamento
+      </button>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

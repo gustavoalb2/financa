@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Categorias | Meu Dinheiro{% endblock %}
+{% block page_title %}Gerenciamento de Categorias{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Create Category Form (Left) -->
+  <div class="col-12 col-md-4">
+    <div class="card-custom p-3.5">
+      <h5 class="h6 mb-3 fw-bold border-bottom border-secondary border-opacity-25 pb-2">
+        <i class="bi bi-plus-circle-fill text-primary me-2"></i> Nova Categoria Customizada
+      </h5>
+
+      <form method="post" action="{% url 'category_create' %}">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Nome da Categoria</label>
+          {{ form.name }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Tipo de Categoria</label>
+          {{ form.type }}
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Cor de Destaque</label>
+            {{ form.color }}
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Ícone (Bootstrap)</label>
+            {{ form.icon }}
+          </div>
+        </div>
+        <small class="text-secondary d-block mb-3" style="font-size: 0.75rem;">
+          Ex de ícones: <code>bi-cart-fill</code>, <code>bi-house-fill</code>, <code>bi-car-front-fill</code>, <code>bi-laptop-fill</code>
+        </small>
+        <button type="submit" class="btn btn-primary w-100 fw-semibold">
+          <i class="bi bi-check-lg me-1"></i> Criar Categoria
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Categories List (Right) -->
+  <div class="col-12 col-md-8">
+    <div class="card-custom p-3.5">
+      <h5 class="h6 mb-3 fw-bold border-bottom border-secondary border-opacity-25 pb-2 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-tags-fill text-warning me-2"></i> Categorias Cadastradas</span>
+        <span class="badge bg-secondary bg-opacity-20 text-light fw-normal">{{ categories.count }} categorias</span>
+      </h5>
+
+      <div class="row g-2">
+        {% for cat in categories %}
+          <div class="col-12 col-sm-6">
+            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-3">
+                <div class="px-2.5 py-2 rounded-3 text-white fs-5" style="background-color: {{ cat.color }};">
+                  <i class="bi {{ cat.icon }}"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-light" style="font-size: 0.95rem;">{{ cat.name }}</div>
+                  <small class="{% if cat.type == 'INCOME' %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.75rem;">
+                    {{ cat.get_type_display }}
+                  </small>
+                </div>
+              </div>
+
+              <div>
+                {% if not cat.is_default %}
+                  <form method="post" action="{% url 'category_delete' cat.id %}" onsubmit="return confirm('Deseja excluir a categoria {{ cat.name }}?');" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm border-0" title="Excluir Categoria">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </form>
+                {% else %}
+                  <span class="badge bg-secondary bg-opacity-20 text-secondary" style="font-size: 0.7rem;">Padrão</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

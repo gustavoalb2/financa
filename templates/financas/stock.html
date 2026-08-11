@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Controle de Estoque | Meu Dinheiro{% endblock %}
+{% block page_title %}Controle de Estoque{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-semibold">Produtos Cadastrados</span>
+          <div class="kpi-value text-light">{{ total_products_count }}</div>
+        </div>
+        <div class="kpi-icon" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">
+          <i class="bi bi-box-seam-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-semibold">Total de Itens em Estoque</span>
+          <div class="kpi-value text-info">{{ total_items_stock|floatformat:2 }}</div>
+        </div>
+        <div class="kpi-icon" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8;">
+          <i class="bi bi-layers-fill"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-semibold">Valor Investido (Custo)</span>
+          <div class="kpi-value text-warning">R$ {{ total_cost_value|floatformat:2 }}</div>
+        </div>
+        <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+          <i class="bi bi-currency-dollar"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <span class="text-secondary small fw-semibold">Valor Potencial de Venda</span>
+          <div class="kpi-value text-success">R$ {{ total_sale_value|floatformat:2 }}</div>
+        </div>
+        <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+          <i class="bi bi-graph-up-arrow"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Products Table Card -->
+<div class="card-custom mb-4">
+  <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+    <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-boxes text-primary"></i> Catálogo de Produtos e Estoque
+    </h5>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newProductModal">
+      <i class="bi bi-plus-lg me-1"></i> Cadastrar Produto
+    </button>
+  </div>
+
+  {% if product_list %}
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>SKU / Código</th>
+            <th>Nome do Produto</th>
+            <th>Unidade</th>
+            <th class="text-end">Custo Unit.</th>
+            <th class="text-end">Venda Unit.</th>
+            <th class="text-center">Estoque Atual</th>
+            <th class="text-end">Valor em Custo</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in product_list %}
+            <tr>
+              <td class="text-secondary small font-monospace">{{ item.product.sku|default:"-" }}</td>
+              <td class="fw-semibold text-light">{{ item.product.name }}</td>
+              <td><span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-25">{{ item.product.unit }}</span></td>
+              <td class="text-end text-secondary">R$ {{ item.product.cost_price|floatformat:2 }}</td>
+              <td class="text-end text-success fw-semibold">R$ {{ item.product.sale_price|floatformat:2 }}</td>
+              <td class="text-center fw-bold fs-6">
+                {% if item.current_stock > 0 %}
+                  <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-3 py-2">
+                    <i class="bi bi-check-circle-fill me-1"></i> {{ item.current_stock|floatformat:2 }} {{ item.product.unit }}
+                  </span>
+                {% elif item.current_stock == 0 %}
+                  <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-25 px-3 py-2">
+                    0.00 {{ item.product.unit }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 px-3 py-2">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ item.current_stock|floatformat:2 }} {{ item.product.unit }}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-bold text-light">R$ {{ item.total_cost_val|floatformat:2 }}</td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-1">
+                  <!-- Edit Product Modal Trigger -->
+                  <button type="button" class="btn btn-outline-warning btn-sm py-1 px-2 btn-edit-product"
+                          title="Editar Produto"
+                          data-id="{{ item.product.id }}"
+                          data-name="{{ item.product.name }}"
+                          data-sku="{{ item.product.sku|default:'' }}"
+                          data-unit="{{ item.product.unit }}"
+                          data-cost="{{ item.product.cost_price }}"
+                          data-sale="{{ item.product.sale_price }}"
+                          data-action="{% url 'product_edit' item.product.id %}">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <!-- Delete Form -->
+                  <form method="post" action="{% url 'product_delete' item.product.id %}" onsubmit="return confirm('Deseja realmente excluir este produto?');" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Excluir Produto">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-box-seam fs-1 mb-2"></i>
+      <p class="mb-2">Nenhum produto cadastrado até o momento.</p>
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newProductModal">
+        <i class="bi bi-plus-circle me-1"></i> Cadastrar Primeiro Produto
+      </button>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Stock Movement History -->
+<div class="card-custom">
+  <div class="p-3 border-bottom border-secondary border-opacity-25">
+    <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-clock-history text-info"></i> Últimas Movimentações de Estoque
+    </h5>
+  </div>
+
+  {% if stock_transactions %}
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo Movimento</th>
+            <th>Produto</th>
+            <th>Descrição do Lançamento</th>
+            <th class="text-center">Qtd. Movimentada</th>
+            <th class="text-end">Valor Financeiro</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in stock_transactions %}
+            <tr>
+              <td class="text-secondary small">{{ t.date|date:"d/m/Y" }}</td>
+              <td>
+                {% if t.type == 'EXPENSE' %}
+                  <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25">
+                    <i class="bi bi-arrow-down-left"></i> Entrada Estoque (Compra)
+                  </span>
+                {% else %}
+                  <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25">
+                    <i class="bi bi-arrow-up-right"></i> Saída Estoque (Venda)
+                  </span>
+                {% endif %}
+              </td>
+              <td class="fw-semibold text-light">{{ t.product.name|default:"Sem produto vinculado" }}</td>
+              <td class="text-secondary small">{{ t.description }}</td>
+              <td class="text-center fw-bold {% if t.type == 'EXPENSE' %}text-success{% else %}text-danger{% endif %}">
+                {% if t.type == 'EXPENSE' %}+{% else %}-{% endif %} {{ t.quantity|floatformat:2 }} {{ t.product.unit }}
+              </td>
+              <td class="text-end fw-semibold">R$ {{ t.amount|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-4 text-secondary small">
+      Nenhuma movimentação de estoque registrada ainda. Ao cadastrar um lançamento de despesa ou receita, marque a opção "Afeta Estoque?".
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal: Novo Produto -->
+<div class="modal fade" id="newProductModal" tabindex="-1" aria-labelledby="newProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="newProductModalLabel">
+          <i class="bi bi-box-seam text-primary me-2"></i> Novo Produto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'product_create' %}">
+        {% csrf_token %}
+        <div class="modal-body space-y-3">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nome do Produto</label>
+            {{ form.name }}
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">SKU / Código (Opcional)</label>
+              {{ form.sku }}
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Unidade de Medida</label>
+              {{ form.unit }}
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Preço Custo Unit. (R$)</label>
+              {{ form.cost_price }}
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Preço Venda Unit. (R$)</label>
+              {{ form.sale_price }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i> Salvar Produto
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Produto -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="editProductModalLabel">
+          <i class="bi bi-pencil-square text-warning me-2"></i> Editar Produto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editProductForm" action="">
+        {% csrf_token %}
+        <div class="modal-body space-y-3">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nome do Produto</label>
+            <input type="text" name="name" id="edit_product_name" class="form-control" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">SKU / Código (Opcional)</label>
+              <input type="text" name="sku" id="edit_product_sku" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Unidade de Medida</label>
+              <input type="text" name="unit" id="edit_product_unit" class="form-control" required>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Preço Custo Unit. (R$)</label>
+              <input type="number" step="0.01" name="cost_price" id="edit_product_cost_price" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Preço Venda Unit. (R$)</label>
+              <input type="number" step="0.01" name="sale_price" id="edit_product_sale_price" class="form-control" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i> Salvar Alterações
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const editButtons = document.querySelectorAll('.btn-edit-product');
+    const editModalEl = document.getElementById('editProductModal');
+    if (!editModalEl) return;
+    const editModal = new bootstrap.Modal(editModalEl);
+    const editForm = document.getElementById('editProductForm');
+
+    editButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const action = this.getAttribute('data-action');
+        const name = this.getAttribute('data-name');
+        const sku = this.getAttribute('data-sku');
+        const unit = this.getAttribute('data-unit');
+        const cost = this.getAttribute('data-cost').replace(',', '.');
+        const sale = this.getAttribute('data-sale').replace(',', '.');
+
+        editForm.action = action;
+        document.getElementById('edit_product_name').value = name;
+        document.getElementById('edit_product_sku').value = sku;
+        document.getElementById('edit_product_unit').value = unit;
+        document.getElementById('edit_product_cost_price').value = parseFloat(cost).toFixed(2);
+        document.getElementById('edit_product_sale_price').value = parseFloat(sale).toFixed(2);
+
+        editModal.show();
+      });
+    });
+  });
+</script>
+{% endblock %}
+

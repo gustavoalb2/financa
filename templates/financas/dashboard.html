@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard | Meu Dinheiro{% endblock %}
+{% block page_title %}Painel Geral de Finanças{% endblock %}
+
+{% block content %}
+<!-- Month & Year Filter Bar -->
+<div class="card-custom mb-4 p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-calendar3 text-primary fs-5"></i>
+    <span class="fw-semibold text-light">Período de Análise:</span>
+    <span class="badge bg-primary bg-opacity-20 text-primary fs-6 px-3 py-2 border border-primary border-opacity-25">
+      {{ selected_month_name }} de {{ selected_year }}
+    </span>
+  </div>
+
+  <form method="get" class="d-flex align-items-center gap-2">
+    <select name="month" class="form-select form-select-sm" style="width: 140px;">
+      {% for m_num, m_name in months_list %}
+        <option value="{{ m_num }}" {% if m_num == selected_month %}selected{% endif %}>{{ m_name }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="year" class="form-select form-select-sm" style="width: 110px;">
+      {% for y in years_list %}
+        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 fw-semibold">
+      <i class="bi bi-funnel-fill"></i> Filtrar
+    </button>
+  </form>
+</div>
+
+<!-- KPI Cards Grid (4 Columns) -->
+<div class="row g-3 mb-4">
+  <!-- Saldo Atual Global -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card kpi-balance h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="text-secondary small fw-semibold text-uppercase">Saldo Atual Total</span>
+        <div class="kpi-icon"><i class="bi bi-wallet2"></i></div>
+      </div>
+      <div class="kpi-value text-primary">R$ {{ current_balance|floatformat:2 }}</div>
+      <div class="text-secondary small d-flex align-items-center gap-1" style="font-size: 0.78rem;">
+        <i class="bi bi-info-circle"></i> Saldo de partida: R$ {{ profile.initial_balance|floatformat:2 }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Lucros / Entradas do Mês -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card kpi-income h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="text-secondary small fw-semibold text-uppercase">Entradas (Mês)</span>
+        <div class="kpi-icon"><i class="bi bi-arrow-down-left-circle-fill"></i></div>
+      </div>
+      <div class="kpi-value text-success">R$ {{ incomes_period|floatformat:2 }}</div>
+      <div>
+        {% if income_change_pct > 0 %}
+          <span class="pct-badge up"><i class="bi bi-graph-up-arrow"></i> +{{ income_change_pct }}% vs mês anterior</span>
+        {% elif income_change_pct < 0 %}
+          <span class="pct-badge down"><i class="bi bi-graph-down-arrow"></i> {{ income_change_pct }}% vs mês anterior</span>
+        {% else %}
+          <span class="pct-badge neutral"><i class="bi bi-dash"></i> Sem variação</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Gastos / Saídas do Mês -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card kpi-expense h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="text-secondary small fw-semibold text-uppercase">Saídas (Mês)</span>
+        <div class="kpi-icon"><i class="bi bi-arrow-up-right-circle-fill"></i></div>
+      </div>
+      <div class="kpi-value text-danger">R$ {{ expenses_period|floatformat:2 }}</div>
+      <div>
+        {% if expense_change_pct > 0 %}
+          <span class="pct-badge down"><i class="bi bi-arrow-up-right"></i> +{{ expense_change_pct }}% vs mês anterior</span>
+        {% elif expense_change_pct < 0 %}
+          <span class="pct-badge up"><i class="bi bi-arrow-down-right"></i> {{ expense_change_pct }}% vs mês anterior</span>
+        {% else %}
+          <span class="pct-badge neutral"><i class="bi bi-dash"></i> Sem variação</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Balanço / Saldo Líquido do Mês -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card-custom kpi-card kpi-net h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="text-secondary small fw-semibold text-uppercase">Balanço do Mês</span>
+        <div class="kpi-icon"><i class="bi bi-piggy-bank-fill"></i></div>
+      </div>
+      <div class="kpi-value {% if net_period >= 0 %}text-info{% else %}text-danger{% endif %}">
+        R$ {{ net_period|floatformat:2 }}
+      </div>
+      <div class="text-secondary small" style="font-size: 0.78rem;">
+        {% if net_period >= 0 %}
+          <i class="bi bi-check-circle-fill text-success me-1"></i> Superávit no período
+        {% else %}
+          <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Déficit no período
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Key Percentage Metrics Banner -->
+<div class="row g-3 mb-4">
+  <!-- Metric: Gastos vs Receita % -->
+  <div class="col-12 col-md-6">
+    <div class="card-custom p-3 position-relative overflow-hidden">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-percent fs-4 text-warning"></i>
+          <div>
+            <h6 class="mb-0 fw-bold">Porcentagem de Comprometimento</h6>
+            <small class="text-secondary">Quanto das suas entradas saíram em despesas</small>
+          </div>
+        </div>
+        <span class="fs-4 fw-bold {% if expense_percentage > 85 %}text-danger{% elif expense_percentage > 70 %}text-warning{% else %}text-success{% endif %}">
+          {{ expense_percentage }}%
+        </span>
+      </div>
+      <div class="progress bg-dark" style="height: 10px;">
+        <div class="progress-bar {% if expense_percentage > 85 %}bg-danger{% elif expense_percentage > 70 %}bg-warning{% else %}bg-success{% endif %}" 
+             role="progressbar" 
+             style="width: {{ expense_percentage }}%; transition: width 0.8s ease;" 
+             aria-valuenow="{{ expense_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <div class="d-flex justify-content-between mt-2 text-secondary" style="font-size: 0.75rem;">
+        <span>R$ 0.00</span>
+        <span>Ideal: &lt; 70%</span>
+        <span>R$ {{ incomes_period|floatformat:2 }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric: Economia vs Receita % -->
+  <div class="col-12 col-md-6">
+    <div class="card-custom p-3 position-relative overflow-hidden">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-shield-check fs-4 text-success"></i>
+          <div>
+            <h6 class="mb-0 fw-bold">Taxa de Poupança / Economia</h6>
+            <small class="text-secondary">Porcentagem da receita mantida ou economizada</small>
+          </div>
+        </div>
+        <span class="fs-4 fw-bold {% if savings_percentage >= 20 %}text-success{% elif savings_percentage > 0 %}text-info{% else %}text-danger{% endif %}">
+          {{ savings_percentage }}%
+        </span>
+      </div>
+      <div class="progress bg-dark" style="height: 10px;">
+        <div class="progress-bar {% if savings_percentage >= 20 %}bg-success{% elif savings_percentage > 0 %}bg-info{% else %}bg-danger{% endif %}" 
+             role="progressbar" 
+             style="width: {% if savings_percentage > 0 %}{{ savings_percentage }}{% else %}0{% endif %}%; transition: width 0.8s ease;" 
+             aria-valuenow="{{ savings_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <div class="d-flex justify-content-between mt-2 text-secondary" style="font-size: 0.75rem;">
+        <span>Meta sugerida: &gt; 20%</span>
+        <span>Economizado: R$ {{ net_period|floatformat:2 }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <!-- Bar Chart: Trend 6 Months -->
+  <div class="col-12 col-lg-7">
+    <div class="card-custom p-3.5 h-100">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+        <h5 class="card-title h6 mb-0 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart-line-fill text-primary"></i> Evolução Mensal (Últimos 6 Meses)
+        </h5>
+        <small class="text-secondary">Entradas vs Saídas</small>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doughnut Chart: Expenses by Category -->
+  <div class="col-12 col-lg-5">
+    <div class="card-custom p-3.5 h-100">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+        <h5 class="card-title h6 mb-0 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-pie-chart-fill text-warning"></i> Gastos por Categoria
+        </h5>
+        <small class="text-secondary">{{ selected_month_name }}/{{ selected_year }}</small>
+      </div>
+      {% if cat_chart_data %}
+        <div style="height: 280px; position: relative;">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      {% else %}
+        <div class="d-flex flex-column align-items-center justify-content-center text-secondary h-100 py-5">
+          <i class="bi bi-inbox fs-1 mb-2"></i>
+          <p class="mb-0">Nenhuma despesa registrada neste mês.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Category Breakdown Table & Recent Transactions Row -->
+<div class="row g-3">
+  <!-- Category Breakdown List -->
+  <div class="col-12 col-lg-5">
+    <div class="card-custom p-3 h-100">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+        <h5 class="card-title h6 mb-0 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-list-stars text-info"></i> Detalhamento de Saídas
+        </h5>
+        <a href="{% url 'categories' %}" class="btn btn-link btn-sm text-decoration-none p-0">Ver Todas</a>
+      </div>
+
+      {% if category_breakdown %}
+        <div class="space-y-3">
+          {% for item in category_breakdown %}
+            <div class="mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-1" style="font-size: 0.88rem;">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge" style="background-color: {{ item.color }};">
+                    <i class="bi {{ item.icon }}"></i>
+                  </span>
+                  <span class="fw-semibold text-light">{{ item.name }}</span>
+                </div>
+                <div class="text-end">
+                  <span class="fw-bold text-light">R$ {{ item.total|floatformat:2 }}</span>
+                  <span class="text-secondary small ms-1">({{ item.percentage }}%)</span>
+                </div>
+              </div>
+              <div class="progress bg-dark" style="height: 6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.percentage }}%; background-color: {{ item.color }};"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-secondary text-center my-4">Sem dados para exibir.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Transactions Table -->
+  <div class="col-12 col-lg-7">
+    <div class="card-custom p-3 h-100">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary border-opacity-25 pb-2">
+        <h5 class="card-title h6 mb-0 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-clock-history text-primary"></i> Últimos Lançamentos
+        </h5>
+        <a href="{% url 'transactions' %}" class="btn btn-outline-primary btn-sm">Ver Todos Lançamentos</a>
+      </div>
+
+      {% if recent_transactions %}
+        <div class="table-responsive">
+          <table class="table table-custom mb-0">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Categoria</th>
+                <th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in recent_transactions %}
+                <tr>
+                  <td class="text-secondary small">{{ t.date|date:"d/m/Y" }}</td>
+                  <td class="fw-semibold">
+                    <div class="d-flex align-items-center gap-2">
+                      {% if t.type == 'INCOME' %}
+                        <i class="bi bi-arrow-down-left-circle-fill text-success fs-6"></i>
+                      {% else %}
+                        <i class="bi bi-arrow-up-right-circle-fill text-danger fs-6"></i>
+                      {% endif %}
+                      <span>{{ t.description }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {% if t.category %}
+                      <span class="badge-cat" style="background-color: rgba(255,255,255,0.05); color: {{ t.category.color }}; border: 1px solid {{ t.category.color }};">
+                        <i class="bi {{ t.category.icon }}"></i> {{ t.category.name }}
+                      </span>
+                    {% else %}
+                      <span class="text-secondary small">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end fw-bold {% if t.type == 'INCOME' %}text-success{% else %}text-danger{% endif %}">
+                    {% if t.type == 'INCOME' %}+{% else %}-{% endif %} R$ {{ t.amount|floatformat:2 }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-4 text-secondary">
+          <p class="mb-2">Nenhum lançamento registrado ainda.</p>
+          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickAddModal">
+            <i class="bi bi-plus-circle me-1"></i> Adicionar Primeiro Lançamento
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // 1. Trend Chart (Bar chart - 6 months)
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [
+          {
+            label: 'Entradas (R$)',
+            data: {{ trend_incomes|safe }},
+            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+            borderColor: '#10b981',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Saídas (R$)',
+            data: {{ trend_expenses|safe }},
+            backgroundColor: 'rgba(244, 63, 94, 0.7)',
+            borderColor: '#f43f5e',
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { family: 'Inter' } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          y: {
+            ticks: { color: '#94a3b8' },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          }
+        }
+      }
+    });
+
+    // 2. Category Doughnut Chart
+    {% if cat_chart_data %}
+    const catCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(catCtx, {
+      type: 'doughnut',
+      data: {
+        labels: {{ cat_chart_labels|safe }},
+        datasets: [{
+          data: {{ cat_chart_data|safe }},
+          backgroundColor: {{ cat_chart_colors|safe }},
+          borderWidth: 2,
+          borderColor: '#1e293b'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+          }
+        },
+        cutout: '70%'
+      }
+    });
+    {% endif %}
+  });
+</script>
+{% endblock %}
