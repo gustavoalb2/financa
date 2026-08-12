@@ -20,3 +20,5 @@ media/
 .pytest_cache/
 .coverage
 .DS_Store
+
+Deploy.md
