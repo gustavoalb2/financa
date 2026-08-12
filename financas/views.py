@@ -8,7 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 
-from django.db.models import Sum, Q
+from django.db.models import Case, DecimalField, F, Sum, Q, Value, When
+from django.db.models.functions import Coalesce, TruncMonth
 from django.core.paginator import Paginator
 
 from .models import Transaction, Category, UserProfile, Product
@@ -47,8 +48,12 @@ def dashboard_view(request):
         date__range=[period_start, period_end]
     )
 
-    incomes_period = period_transactions.filter(type='INCOME').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    expenses_period = period_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    period_totals = period_transactions.aggregate(
+        income=Coalesce(Sum('amount', filter=Q(type='INCOME')), Value(Decimal('0.00'))),
+        expense=Coalesce(Sum('amount', filter=Q(type='EXPENSE')), Value(Decimal('0.00'))),
+    )
+    incomes_period = period_totals['income']
+    expenses_period = period_totals['expense']
     net_period = incomes_period - expenses_period
 
     # 3. Calculate percentages
@@ -75,8 +80,12 @@ def dashboard_view(request):
         user=user,
         date__range=[date(prev_year, prev_month, 1), date(prev_year, prev_month, prev_last_day)]
     )
-    prev_incomes = prev_transactions.filter(type='INCOME').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    prev_expenses = prev_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    prev_totals = prev_transactions.aggregate(
+        income=Coalesce(Sum('amount', filter=Q(type='INCOME')), Value(Decimal('0.00'))),
+        expense=Coalesce(Sum('amount', filter=Q(type='EXPENSE')), Value(Decimal('0.00'))),
+    )
+    prev_incomes = prev_totals['income']
+    prev_expenses = prev_totals['expense']
 
     # Percentage change comparing current period vs prev period
     if prev_incomes > Decimal('0.00'):
@@ -125,6 +134,22 @@ def dashboard_view(request):
 
     pt_months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 
+    trend_start_month = selected_month - 5
+    trend_start_year = selected_year
+    while trend_start_month <= 0:
+        trend_start_month += 12
+        trend_start_year -= 1
+    trend_start = date(trend_start_year, trend_start_month, 1)
+    trend_end = date(selected_year, selected_month, calendar.monthrange(selected_year, selected_month)[1])
+    monthly_totals = {
+        row['month']: row for row in Transaction.objects.filter(
+            user=user, date__range=[trend_start, trend_end]
+        ).annotate(month=TruncMonth('date')).values('month').annotate(
+            income=Coalesce(Sum('amount', filter=Q(type='INCOME')), Value(Decimal('0.00'))),
+            expense=Coalesce(Sum('amount', filter=Q(type='EXPENSE')), Value(Decimal('0.00'))),
+        )
+    }
+
     for i in range(5, -1, -1):
         m = selected_month - i
         y = selected_year
@@ -133,9 +158,9 @@ def dashboard_view(request):
             y -= 1
         
         _, m_last = calendar.monthrange(y, m)
-        m_trans = Transaction.objects.filter(user=user, date__range=[date(y, m, 1), date(y, m, m_last)])
-        m_inc = m_trans.filter(type='INCOME').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-        m_exp = m_trans.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+        month_totals = monthly_totals.get(date(y, m, 1))
+        m_inc = month_totals['income'] if month_totals else Decimal('0.00')
+        m_exp = month_totals['expense'] if month_totals else Decimal('0.00')
 
         monthly_trend_labels.append(f"{pt_months[m-1]}/{y}")
         monthly_trend_incomes.append(float(m_inc))
@@ -392,7 +417,17 @@ def export_csv_view(request):
 @login_required
 def stock_list_view(request):
     user = request.user
-    products = Product.objects.filter(user=user).order_by('name')
+    products = Product.objects.filter(user=user).annotate(
+        current_stock=Coalesce(
+            Sum(Case(
+                When(transactions__affects_stock=True, transactions__type='EXPENSE', then=F('transactions__quantity')),
+                When(transactions__affects_stock=True, transactions__type='INCOME', then=-F('transactions__quantity')),
+                default=Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )),
+            Value(Decimal('0.00')),
+        )
+    ).order_by('name')
     form = ProductForm()
 
     # Calculate stock data for each product
@@ -402,7 +437,7 @@ def stock_list_view(request):
     total_sale_value = Decimal('0.00')
 
     for p in products:
-        current_stock = p.get_current_stock()
+        current_stock = p.current_stock
         cost_val = current_stock * p.cost_price
         sale_val = current_stock * p.sale_price
 
@@ -481,5 +516,4 @@ def product_delete_view(request, pk):
         product.delete()
         messages.success(request, 'Produto excluído com sucesso!')
     return redirect('stock')
-
 

@@ -198,7 +198,7 @@
                     <select name="product" id="modal_product_select" class="form-select form-select-sm">
                       <option value="">-- Selecione o Produto --</option>
                       {% for prod in global_products %}
-                        <option value="{{ prod.id }}">{{ prod.name }} (Estoque: {{ prod.get_current_stock|floatformat:2 }} {{ prod.unit }})</option>
+                        <option value="{{ prod.id }}">{{ prod.name }} (Estoque: {{ prod.current_stock|floatformat:2 }} {{ prod.unit }})</option>
                       {% endfor %}
                     </select>
                   </div>
@@ -315,9 +315,6 @@
 
   <!-- Bootstrap 5 JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
   <script>
     // Sidebar toggle for mobile
     const sidebarToggle = document.getElementById('sidebarToggle');

@@ -144,7 +144,10 @@ class Transaction(models.Model):
         verbose_name = "Transação"
         verbose_name_plural = "Transações"
         ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['user', '-date'], name='transaction_user_date_idx'),
+            models.Index(fields=['user', 'date', 'type'], name='transaction_user_date_type_idx'),
+        ]
 
     def __str__(self):
         return f"{self.description} - R$ {self.amount} ({self.date.strftime('%d/%m/%Y')})"
-
