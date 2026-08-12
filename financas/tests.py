@@ -68,6 +68,19 @@ class FinanceTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Transaction.objects.filter(user=self.user, description='Supermercado Teste').count(), 1)
 
+    def test_income_category_overrides_expense_type(self):
+        self.client.login(username='testuser', password='password123')
+        self.client.post(reverse('transaction_create'), {
+            'type': 'EXPENSE',
+            'description': 'Venda de Produto',
+            'amount': '150.00',
+            'date': '2026-08-01',
+            'category': self.cat_income.id,
+            'payment_method': 'PIX',
+        })
+        transaction = Transaction.objects.get(description='Venda de Produto')
+        self.assertEqual(transaction.type, 'INCOME')
+
     def test_stock_calculation_and_integration(self):
         self.client.login(username='testuser', password='password123')
 
@@ -180,6 +193,5 @@ class FinanceTestCase(TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['name'], 'Novo Produto Rápido')
         self.assertTrue(Product.objects.filter(name='Novo Produto Rápido', user=self.user).exists())
-
 
 

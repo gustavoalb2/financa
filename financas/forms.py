@@ -42,6 +42,7 @@ class TransactionForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        category = cleaned_data.get('category')
         affects_stock = cleaned_data.get('affects_stock')
         product = cleaned_data.get('product')
         quantity = cleaned_data.get('quantity')
@@ -54,6 +55,12 @@ class TransactionForm(forms.ModelForm):
         else:
             cleaned_data['product'] = None
             cleaned_data['quantity'] = None
+
+        # A categoria define a natureza financeira do lançamento. Isso evita
+        # que uma categoria de receita seja contabilizada como despesa quando
+        # o formulário/modal permanecer no valor padrão EXPENSE.
+        if category:
+            cleaned_data['type'] = category.type
 
         return cleaned_data
 

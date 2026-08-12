@@ -161,7 +161,7 @@
                 <select name="category" id="modal_category_select" class="form-select category-select-input">
                   <option value="">-- Sem Categoria --</option>
                   {% for cat in global_categories %}
-                    <option value="{{ cat.id }}" data-name="{{ cat.name|lower }}">{{ cat.name }} ({{ cat.get_type_display }})</option>
+                    <option value="{{ cat.id }}" data-name="{{ cat.name|lower }}" data-type="{{ cat.type }}">{{ cat.name }} ({{ cat.get_type_display }})</option>
                   {% endfor %}
                 </select>
               </div>
@@ -340,6 +340,9 @@
       categorySelect.addEventListener('change', function() {
         const selectedOpt = this.options[this.selectedIndex];
         const catName = selectedOpt ? (selectedOpt.getAttribute('data-name') || '') : '';
+        const catType = selectedOpt ? selectedOpt.getAttribute('data-type') : '';
+        const typeSelect = document.getElementById('modal_type_select');
+        if (catType && typeSelect) typeSelect.value = catType;
         if (catName.includes('produto') || catName.includes('venda')) {
           affectsStockCheckbox.checked = true;
           stockFieldsContainer.style.display = 'block';
@@ -369,6 +372,7 @@
               const opt = document.createElement('option');
               opt.value = data.id;
               opt.setAttribute('data-name', data.name.toLowerCase());
+              opt.setAttribute('data-type', data.type);
               opt.textContent = `${data.name} (${data.type_display})`;
               opt.selected = true;
               sel.appendChild(opt);
