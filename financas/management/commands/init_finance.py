@@ -7,38 +7,15 @@ from django.core.management.base import BaseCommand, CommandError
 from financas.models import Category, UserProfile
 
 
-DEFAULT_CATEGORIES = [
-    {'name': 'Salário', 'type': 'INCOME', 'color': '#10b981', 'icon': 'bi-briefcase-fill'},
-    {'name': 'Freelance / Serviços', 'type': 'INCOME', 'color': '#06b6d4', 'icon': 'bi-laptop-fill'},
-    {'name': 'Investimentos', 'type': 'INCOME', 'color': '#3b82f6', 'icon': 'bi-graph-up-arrow'},
-    {'name': 'Vendas / Rendimentos', 'type': 'INCOME', 'color': '#8b5cf6', 'icon': 'bi-cash-coin'},
-    {'name': 'Outras Receitas', 'type': 'INCOME', 'color': '#14b8a6', 'icon': 'bi-piggy-bank-fill'},
-    {'name': 'Alimentação & Mercado', 'type': 'EXPENSE', 'color': '#ef4444', 'icon': 'bi-cart-fill'},
-    {'name': 'Moradia & Aluguel', 'type': 'EXPENSE', 'color': '#f97316', 'icon': 'bi-house-door-fill'},
-    {'name': 'Transporte & Combustível', 'type': 'EXPENSE', 'color': '#eab308', 'icon': 'bi-fuel-pump-fill'},
-    {'name': 'Lazer & Viagens', 'type': 'EXPENSE', 'color': '#ec4899', 'icon': 'bi-controller'},
-    {'name': 'Saúde & Farmácia', 'type': 'EXPENSE', 'color': '#06b6d4', 'icon': 'bi-heart-pulse-fill'},
-    {'name': 'Educação & Cursos', 'type': 'EXPENSE', 'color': '#6366f1', 'icon': 'bi-book-fill'},
-    {'name': 'Contas & Boletos', 'type': 'EXPENSE', 'color': '#f43f5e', 'icon': 'bi-receipt'},
-    {'name': 'Compras Pessoais', 'type': 'EXPENSE', 'color': '#a855f7', 'icon': 'bi-bag-check-fill'},
-    {'name': 'Outras Despesas', 'type': 'EXPENSE', 'color': '#64748b', 'icon': 'bi-three-dots'},
-]
-
-
 class Command(BaseCommand):
-    help = 'Inicializa categorias, perfis e o superusuário do ambiente.'
+    help = 'Inicializa perfis e o superusuário do ambiente, sem categorias padrão.'
 
     def handle(self, *args, **options):
-        for category in DEFAULT_CATEGORIES:
-            Category.objects.get_or_create(
-                name=category['name'],
-                type=category['type'],
-                defaults={
-                    'color': category['color'],
-                    'icon': category['icon'],
-                    'is_default': True,
-                },
-            )
+        # Remove apenas categorias pré-cadastradas pelo sistema. Categorias
+        # criadas pelo usuário têm user preenchido e são preservadas.
+        deleted, _ = Category.objects.filter(is_default=True, user__isnull=True).delete()
+        if deleted:
+            self.stdout.write(self.style.SUCCESS(f'{deleted} categoria(s) padrão removida(s).'))
 
         username = os.getenv('DJANGO_SUPERUSER_USERNAME', 'admin')
         email = os.getenv('DJANGO_SUPERUSER_EMAIL', 'admin@financas.local')

@@ -52,7 +52,7 @@ Depois, faça um redeploy.
 
 ## 4. Migrações e dados iniciais
 
-O `vercel.json` executa automaticamente as migrações, a criação das categorias e a coleta de arquivos estáticos durante cada build. Para isso, cadastre também no Vercel:
+O `vercel.json` executa automaticamente as migrações, a remoção de categorias pré-cadastradas, a criação do superusuário e a coleta de arquivos estáticos durante cada build. Categorias criadas por usuários são preservadas. Para isso, cadastre também no Vercel:
 
 ```text
 DJANGO_SUPERUSER_USERNAME=admin
@@ -70,7 +70,7 @@ python manage.py migrate
 python manage.py init_finance
 ```
 
-O comando `init_finance` cria as categorias padrão, os perfis e o superusuário configurado pelas variáveis de ambiente.
+O comando `init_finance` remove categorias padrão antigas, cria os perfis e o superusuário configurado pelas variáveis de ambiente.
 
 ```bash
 python manage.py createsuperuser
