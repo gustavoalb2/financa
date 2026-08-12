@@ -37,6 +37,8 @@ DJANGO_DEBUG=False
 DATABASE_URL=<connection-string-do-Neon>
 DJANGO_ALLOWED_HOSTS=.vercel.app
 DJANGO_CSRF_TRUSTED_ORIGINS=https://*.vercel.app
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_PASSWORD=<senha-forte-do-superusuario>
 ```
 
 Se usar domínio próprio, acrescente o domínio sem apagar `.vercel.app`:
@@ -50,7 +52,17 @@ Depois, faça um redeploy.
 
 ## 4. Migrações e dados iniciais
 
-Após o primeiro deploy, execute as migrações apontando para o Neon. Com a CLI do Vercel:
+O `vercel.json` executa automaticamente as migrações, a criação das categorias e a coleta de arquivos estáticos durante cada build. Para isso, cadastre também no Vercel:
+
+```text
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_EMAIL=seu-email@exemplo.com
+DJANGO_SUPERUSER_PASSWORD=<senha-forte-do-superusuario>
+```
+
+Essas variáveis devem existir no mesmo ambiente em que `DATABASE_URL` está configurada. O comando é idempotente e não substitui o superusuário em deploys seguintes.
+
+Se precisar executar manualmente, aponte a CLI para o ambiente do Vercel:
 
 ```bash
 vercel env pull .env.production.local
@@ -58,7 +70,7 @@ python manage.py migrate
 python manage.py init_finance
 ```
 
-O comando `init_finance` cria as categorias padrão e, se o banco estiver vazio, um usuário inicial. Troque a senha inicial imediatamente ou crie um superusuário próprio:
+O comando `init_finance` cria as categorias padrão, os perfis e o superusuário configurado pelas variáveis de ambiente.
 
 ```bash
 python manage.py createsuperuser
