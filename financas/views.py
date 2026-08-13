@@ -21,6 +21,7 @@ from .forms import TransactionForm, CategoryForm, UserProfileForm, UserUpdateFor
 def dashboard_view(request):
     user = request.user
     profile, created = UserProfile.objects.get_or_create(user=user)
+    request._finance_profile = profile
 
     # 1. Parse selected month and year (Default to current)
     today = date.today()
@@ -179,7 +180,6 @@ def dashboard_view(request):
 
     context = {
         'profile': profile,
-        'current_balance': profile.get_current_balance(),
         'selected_month': selected_month,
         'selected_year': selected_year,
         'selected_month_name': dict(months_list).get(selected_month),
@@ -212,6 +212,7 @@ def dashboard_view(request):
 def transaction_list_view(request):
     user = request.user
     profile = UserProfile.objects.get_or_create(user=user)[0]
+    request._finance_profile = profile
     
     queryset = Transaction.objects.filter(user=user).select_related('category')
 
@@ -234,8 +235,12 @@ def transaction_list_view(request):
         queryset = queryset.filter(date__lte=end_date)
 
     # Totals of current filtered query
-    total_incomes = queryset.filter(type='INCOME').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-    total_expenses = queryset.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    filtered_totals = queryset.aggregate(
+        income=Coalesce(Sum('amount', filter=Q(type='INCOME')), Value(Decimal('0.00'))),
+        expense=Coalesce(Sum('amount', filter=Q(type='EXPENSE')), Value(Decimal('0.00'))),
+    )
+    total_incomes = filtered_totals['income']
+    total_expenses = filtered_totals['expense']
     filtered_net = total_incomes - total_expenses
 
     # Pagination
@@ -361,6 +366,7 @@ def category_delete_view(request, pk):
 def settings_view(request):
     user = request.user
     profile, _ = UserProfile.objects.get_or_create(user=user)
+    request._finance_profile = profile
 
     if request.method == 'POST':
         profile_form = UserProfileForm(request.POST, instance=profile)
@@ -381,7 +387,6 @@ def settings_view(request):
         'profile': profile,
         'profile_form': profile_form,
         'user_form': user_form,
-        'current_balance': profile.get_current_balance(),
     }
     return render(request, 'financas/settings.html', context)
 
@@ -516,4 +521,3 @@ def product_delete_view(request, pk):
         product.delete()
         messages.success(request, 'Produto excluído com sucesso!')
     return redirect('stock')
-

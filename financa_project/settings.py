@@ -85,7 +85,9 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=0,
+        # Reuse connections while a warm Vercel instance handles requests.
+        conn_max_age=int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        conn_health_checks=True,
         ssl_require=bool(DATABASE_URL),
     )
 }

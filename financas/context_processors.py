@@ -11,7 +11,10 @@ def global_finance_context(request):
     if not request.user.is_authenticated:
         return {}
 
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    profile = getattr(request, '_finance_profile', None)
+    if profile is None:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        request._finance_profile = profile
     categories = Category.objects.filter(
         Q(user=request.user) | Q(is_default=True)
     ).order_by('type', 'name')
