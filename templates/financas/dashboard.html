@@ -10,7 +10,7 @@
   <div class="d-flex align-items-center gap-2">
     <i class="bi bi-calendar3 text-primary fs-5"></i>
     <span class="fw-semibold text-light">Período de Análise:</span>
-    <span class="badge bg-primary bg-opacity-20 text-primary fs-6 px-3 py-2 border border-primary border-opacity-25">
+    <span class="badge text-primary fs-6 px-3 py-2 border border-primary">
       {{ selected_month_name }} de {{ selected_year }}
     </span>
   </div>
@@ -28,7 +28,7 @@
       {% endfor %}
     </select>
 
-    <button type="submit" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 fw-semibold">
+    <button type="submit" class="btn bg-primary btn-sm px-3 d-flex align-items-center gap-1 fw-semibold">
       <i class="bi bi-funnel-fill"></i> Filtrar
     </button>
   </form>
